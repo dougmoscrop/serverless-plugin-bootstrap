@@ -4,7 +4,9 @@
   "description": "Deploy bootstrap CloudFormation stacks prior to deploying your Serverless app",
   "main": "bootstrap.js",
   "scripts": {
-    "test": "nyc --all ava"
+    "test": "nyc --all ava",
+    "preversion": "update-contrib",
+    "postpublish": "git push --tags"
   },
   "repository": {
     "type": "git",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "ava": "^0.22.0",
     "nyc": "^11.2.1",
-    "sinon": "^4.0.1"
+    "sinon": "^4.0.1",
+    "update-contributors": "^0.3.1"
   }
 }
