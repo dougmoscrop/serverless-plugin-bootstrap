@@ -1,0 +1,28 @@
+{
+  "name": "serverless-plugin-bootstrap",
+  "version": "1.0.0",
+  "description": "Deploy bootstrap CloudFormation stacks prior to deploying your Serverless app",
+  "main": "bootstrap.js",
+  "scripts": {
+    "test": "nyc --all ava"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dougmoscrop/serverless-plugin-bootstrap.git"
+  },
+  "keywords": [
+    "serverless",
+    "plugin"
+  ],
+  "author": "Doug Moscrop <doug.moscrop@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dougmoscrop/serverless-plugin-bootstrap/issues"
+  },
+  "homepage": "https://github.com/dougmoscrop/serverless-plugin-bootstrap#readme",
+  "devDependencies": {
+    "ava": "^0.22.0",
+    "nyc": "^11.2.1",
+    "sinon": "^4.0.1"
+  }
+}
