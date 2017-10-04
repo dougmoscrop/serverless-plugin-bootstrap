@@ -22,20 +22,38 @@ module.exports = class BootstrapPlugin {
             required: true
           },
           iam: {
-            shortcut: 'i',
             usage: 'Include CAPABILITY_IAM on the Change Set',
             default: false
           },
-          name: {
-            shortcut: 'n',
+          named_iam: {
+            usage: 'Include CAPABILITY_NAMED_IAM on the Change Set',
+            default: false
+          },
+          stack: {
+            shortcut: 's',
             usage: 'Override the name of the CloudFormation stack being bootstrapped'
           }
         }
       }
     };
     this.hooks = {
-      'bootstrap:check': () => this.check()
+      'bootstrap:check': () => this.check(),
+      'before:deploy:deploy': () => this.beforeDeploy()
     };
+  }
+
+  beforeDeploy() {
+    const custom = this.serverless.service.custom || {};
+    const config = custom.bootstrap;
+
+    return Promise.resolve()
+      .then(() => {
+        if (config && config.auto !== false) {
+          Object.assign(this.options, config);
+
+          return this.check();
+        }
+      });
   }
 
   check() {
@@ -75,6 +93,10 @@ module.exports = class BootstrapPlugin {
       capabilities.push('CAPABILITY_IAM');
     }
 
+    if (this.options.named_iam) {
+      capabilities.push('CAPABILITY_NAMED_IAM');
+    }
+
     return {
       StackName: this.stackName,
       ChangeSetName: this.changeSetName,
@@ -86,8 +108,8 @@ module.exports = class BootstrapPlugin {
   }
 
   getStackName() {
-    if (this.options.name) {
-      return this.options.name;
+    if (this.options.stack) {
+      return this.options.stack;
     }
 
     const fileName = path.basename(this.options.file, path.extname(this.options.file));

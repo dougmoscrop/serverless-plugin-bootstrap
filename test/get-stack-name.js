@@ -31,7 +31,7 @@ test('getStackName returns custom name', t => {
   const plugin = t.context.plugin;
 
   t.context.options.file = 'blah/file.json';
-  t.context.options.name = 'bar';
+  t.context.options.stack = 'bar';
 
   const name = plugin.getStackName();
 

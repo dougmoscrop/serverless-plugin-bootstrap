@@ -22,4 +22,5 @@ test('it has the right hooks', t => {
 
   t.true(typeof plugin.hooks === 'object');
   t.true(typeof plugin.hooks['bootstrap:check'] === 'function');
+  t.true(typeof plugin.hooks['before:deploy:deploy'] === 'function');
 });
