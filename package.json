@@ -1,6 +1,6 @@
 {
   "name": "serverless-plugin-bootstrap",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Deploy bootstrap CloudFormation stacks prior to deploying your Serverless app",
   "main": "bootstrap.js",
   "scripts": {
@@ -27,5 +27,8 @@
     "nyc": "^11.2.1",
     "sinon": "^4.0.1",
     "update-contributors": "^0.3.1"
-  }
+  },
+  "contributors": [
+    "Doug Moscrop <doug.moscrop@gmail.com> (https://github.com/dougmoscrop)"
+  ]
 }
