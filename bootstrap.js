@@ -11,53 +11,34 @@ module.exports = class BootstrapPlugin {
     this.provider = serverless.getProvider('aws');
     this.commands = {
       bootstrap: {
-        usage: 'Calculate a Change Set for a given bootstrap template and error if it has any changes for review',
+        usage: 'Create a Change Set for a given CloudFormation template',
         lifecycleEvents: [
-          'check'
+          'bootstrap'
         ],
         options: {
-          file: {
-            shortcut: 'f',
-            usage: 'JSON file that contains the CloudFormation template for the bootstrap stack',
-            required: true
-          },
-          iam: {
-            usage: 'Include CAPABILITY_IAM on the Change Set',
+          execute: {
+            usage: 'Execute the created Change Set',
             default: false
-          },
-          named_iam: {
-            usage: 'Include CAPABILITY_NAMED_IAM on the Change Set',
-            default: false
-          },
-          stack: {
-            shortcut: 's',
-            usage: 'Override the name of the CloudFormation stack being bootstrapped'
           }
         }
       }
     };
     this.hooks = {
-      'bootstrap:check': () => this.check(),
-      'before:deploy:deploy': () => this.beforeDeploy()
+      'bootstrap:bootstrap': () => this.bootstrap(),
+      'before:deploy:deploy': () => this.bootstrap()
     };
   }
 
-  beforeDeploy() {
+  bootstrap() {
     const custom = this.serverless.service.custom || {};
-    const config = custom.bootstrap;
 
-    return Promise.resolve()
-      .then(() => {
-        if (config && config.auto !== false) {
-          Object.assign(this.options, config);
+    this.config = custom.bootstrap || {};
 
-          return this.check();
-        }
-      });
-  }
+    if (!this.config.file) {
+      throw new Error('serverless-plugin-bootstrap: must specify custom.bootstrap.file');
+    }
 
-  check() {
-    const template = this.serverless.utils.readFileSync(this.options.file);
+    const template = this.serverless.utils.readFileSync(this.config.file);
 
     this.templateBody = JSON.stringify(template);
     this.stackName = this.getStackName();
@@ -76,7 +57,16 @@ module.exports = class BootstrapPlugin {
       })
       .then(changes => {
         if (changes.length) {
-          throw new Error(`The stack ${this.stackName} does not match the local template. Review change set ${this.changeSetName} and either update your source code or execute the change set`);
+          if (this.options.execute) {
+            return this.provider.request('CloudFormation', 'executeChangeSet', {
+              StackName: this.stackName,
+              ChangeSetName: this.changeSetName
+            });
+          }
+
+          return Promise.reject(
+            `The stack ${this.stackName} does not match the local template. Review change set ${this.changeSetName} and either update your source code or execute the change set`
+          );
         }
 
         return this.provider.request('CloudFormation', 'deleteChangeSet', {
@@ -87,15 +77,9 @@ module.exports = class BootstrapPlugin {
   }
 
   getChangeSetParams() {
-    const capabilities = [];
-
-    if (this.options.iam) {
-      capabilities.push('CAPABILITY_IAM');
-    }
-
-    if (this.options.named_iam) {
-      capabilities.push('CAPABILITY_NAMED_IAM');
-    }
+    const capabilities = this.config.capabilities
+      ? this.config.capabilities
+      : [];
 
     return {
       StackName: this.stackName,
@@ -108,11 +92,11 @@ module.exports = class BootstrapPlugin {
   }
 
   getStackName() {
-    if (this.options.stack) {
-      return this.options.stack;
+    if (this.config.stack) {
+      return this.config.stack;
     }
 
-    const fileName = path.basename(this.options.file, path.extname(this.options.file));
+    const fileName = path.basename(this.config.file, path.extname(this.config.file));
     const serviceName = this.serverless.service.service;
 
     return `${serviceName}-${fileName}`;

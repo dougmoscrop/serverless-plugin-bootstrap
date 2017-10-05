@@ -8,13 +8,16 @@ test.beforeEach(t =>  {
   t.context.serverless ={
     service: {
       service: 'foo-service',
-      provider: {}
+      provider: {},
+      custom: {
+        bootstrap: {}
+      }
     },
     getProvider: () => t.context.provider
   };
-  t.context.options = {};
   t.context.provider = {};
-  t.context.plugin = new Plugin(t.context.serverless, t.context.options);
+  t.context.plugin = new Plugin(t.context.serverless);
+  t.context.plugin.config = {};
 });
 
 test('getChangeSetParams includes templateBody', t => {
@@ -48,22 +51,18 @@ test('getChangeSetParams includes names', t => {
   t.deepEqual(params.ChangeSetName, 'changeset');
 });
 
-test('getChangeSetParams includes iam capabilities', t => {
+test('getChangeSetParams includes capabilities', t => {
   const plugin = t.context.plugin;
 
-  t.context.options.iam = true;
+  plugin.config.capabilities = [
+    'CAPABILITY_IAM',
+    'CAPABILITY_NAMED_IAM'
+  ];
 
   const params = plugin.getChangeSetParams();
 
-  t.deepEqual(params.Capabilities, ['CAPABILITY_IAM']);
-});
-
-test('getChangeSetParams includes named iam capabilities', t => {
-  const plugin = t.context.plugin;
-
-  t.context.options.named_iam = true;
-
-  const params = plugin.getChangeSetParams();
-
-  t.deepEqual(params.Capabilities, ['CAPABILITY_NAMED_IAM']);
+  t.deepEqual(params.Capabilities, [
+    'CAPABILITY_IAM',
+    'CAPABILITY_NAMED_IAM'
+  ]);
 });

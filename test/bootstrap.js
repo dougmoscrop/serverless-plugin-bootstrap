@@ -9,7 +9,12 @@ test.beforeEach(t =>  {
   t.context.serverless ={
     service: {
       service: 'foo-service',
-      provider: {}
+      provider: {},
+      custom: {
+        bootstrap: {
+          file: 'foo/file.json'
+        }
+      }
     },
     getProvider: () => t.context.provider
   };
@@ -18,7 +23,7 @@ test.beforeEach(t =>  {
   t.context.plugin = new Plugin(t.context.serverless, t.context.options);
 });
 
-test('check is happy when there are no changes', t => {
+test('is happy when there are no changes', t => {
   const plugin = t.context.plugin;
   const provider = t.context.provider;
   const serverless = t.context.serverless;
@@ -37,14 +42,14 @@ test('check is happy when there are no changes', t => {
   sinon.stub(plugin, 'createChangeSet').resolves();
   sinon.stub(plugin, 'getChanges').returns([]);
 
-  return plugin.check()
+  return plugin.bootstrap()
     .then(() => {
       mock.verify();
       t.pass();
     });
 });
 
-test('check throws when there are changes', t => {
+test('rejects when there are changes and execute is not true', t => {
   const plugin = t.context.plugin;
   const provider = t.context.provider;
   const serverless = t.context.serverless;
@@ -63,11 +68,39 @@ test('check throws when there are changes', t => {
   sinon.stub(plugin, 'createChangeSet').resolves();
   sinon.stub(plugin, 'getChanges').returns([{}]);
 
-  return plugin.check()
+  return plugin.bootstrap()
     .then(() => {
       t.fail();
     })
     .catch(e => {
-      t.deepEqual(e.message, 'The stack stackName does not match the local template. Review change set changeSetName and either update your source code or execute the change set');
+      t.deepEqual(e,'The stack stackName does not match the local template. Review change set changeSetName and either update your source code or execute the change set');
+    });
+});
+
+test('resolves when there are changes and execute is true', t => {
+  const plugin = t.context.plugin;
+  const provider = t.context.provider;
+  const serverless = t.context.serverless;
+  const options = t.context.options;
+
+  options.execute = true;
+
+  serverless.utils = {
+    readFileSync: sinon.stub().returns({})
+  };
+
+  const mock = provider.request = sinon.mock()
+    .withArgs('CloudFormation', 'executeChangeSet')
+    .resolves();
+
+  sinon.stub(plugin, 'getStackName').returns('stackName');
+  sinon.stub(plugin, 'getChangeSetName').returns('changeSetName');
+  sinon.stub(plugin, 'createChangeSet').resolves();
+  sinon.stub(plugin, 'getChanges').returns([{}]);
+
+  return plugin.bootstrap()
+    .then(() => {
+      mock.verify();
+      t.true(mock.calledOnce);
     });
 });

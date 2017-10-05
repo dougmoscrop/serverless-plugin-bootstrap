@@ -12,15 +12,16 @@ test.beforeEach(t =>  {
     },
     getProvider: () => t.context.provider
   };
-  t.context.options = {};
   t.context.provider = {};
-  t.context.plugin = new Plugin(t.context.serverless, t.context.options);
+  t.context.plugin = new Plugin(t.context.serverless);
 });
 
 test('getStackName generates name', t => {
   const plugin = t.context.plugin;
 
-  t.context.options.file = 'blah/file.json';
+  plugin.config = {
+    file: 'blah/file.json'
+  };
 
   const name = plugin.getStackName();
 
@@ -30,8 +31,10 @@ test('getStackName generates name', t => {
 test('getStackName returns custom name', t => {
   const plugin = t.context.plugin;
 
-  t.context.options.file = 'blah/file.json';
-  t.context.options.stack = 'bar';
+  plugin.config = {
+    file: 'blah/file.json',
+    stack: 'bar'
+  };
 
   const name = plugin.getStackName();
 

@@ -12,9 +12,8 @@ test.beforeEach(t =>  {
     },
     getProvider: () => t.context.provider
   };
-  t.context.options = {};
   t.context.provider = {};
-  t.context.plugin = new Plugin(t.context.serverless, t.context.options);
+  t.context.plugin = new Plugin(t.context.serverless);
 });
 
 test('getChangeSetName includes hash', t => {
