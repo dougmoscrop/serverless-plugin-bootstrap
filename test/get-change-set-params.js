@@ -66,3 +66,19 @@ test('getChangeSetParams includes capabilities', t => {
     'CAPABILITY_NAMED_IAM'
   ]);
 });
+
+test('getChangeSetParams includes parameters', t => {
+  const plugin = t.context.plugin;
+
+  plugin.config.parameters = [{
+    Key: 'blah',
+    Value: 'blah'
+  }];
+
+  const params = plugin.getChangeSetParams();
+
+  t.deepEqual(params.Parameters, [{
+    Key: 'blah',
+    Value: 'blah'
+  }]);
+});

@@ -81,14 +81,20 @@ module.exports = class BootstrapPlugin {
       ? this.config.capabilities
       : [];
 
-    return {
+    const params = {
       StackName: this.stackName,
       ChangeSetName: this.changeSetName,
       Capabilities: capabilities,
       Description: 'Created by the serverless bootstrap plugin',
       RoleARN: this.serverless.service.provider.cfnRole,
-      TemplateBody: this.templateBody
+      TemplateBody: this.templateBody,
     };
+
+    if (this.config.parameters) {
+      params.Parameters = this.config.parameters;
+    }
+
+    return params;
   }
 
   getStackName() {
@@ -103,8 +109,11 @@ module.exports = class BootstrapPlugin {
   }
 
   getChangeSetName() {
+    const parameters = this.config.parameters;
+
     const md5 = crypto.createHash('md5')
       .update(this.templateBody)
+      .update(parameters ? JSON.stringify(parameters) : '')
       .digest('hex');
 
     return `serverless-bootstrap-${md5}`;
