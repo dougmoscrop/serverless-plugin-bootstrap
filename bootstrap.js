@@ -133,7 +133,18 @@ module.exports = class BootstrapPlugin {
     }
 
     if (res.Status === 'CREATE_COMPLETE') {
-      return res.Changes;
+      return res.Changes.filter(change => {
+        if (change.Type === 'Resource') {
+          const resourceChange = change.ResourceChange;
+
+          // CloudFormation Nested Stacks seem to always show up as 'Modify'
+          // but when nothing has actually changed, Details is an array of Targets with no Name
+          if (resourceChange.Action === 'Modify' && resourceChange.ResourceType === 'AWS::CloudFormation::Stack') {
+            return resourceChange.Details.some(detail => detail.Target.Name);
+          }
+        }
+        return true;
+      });
     }
 
     throw new Error(`Expected res.Status to be CREATE_COMPLETE but got ${res.Status}`);
@@ -155,6 +166,7 @@ module.exports = class BootstrapPlugin {
         .promise()
         .catch(e => {
           if (e.message.match(/Resource is not in the state/)) {
+            // TODO: NextToken support for large (> 1MB) changes
             return this.provider.request('CloudFormation', 'describeChangeSet', {
               StackName: this.stackName,
               ChangeSetName: this.changeSetName
@@ -201,6 +213,9 @@ module.exports = class BootstrapPlugin {
   isRemote(url) {
     return url && url.indexOf('https://') === 0;
   }
+
+  // TODO: Even for remote resources, we should attach metadata about the template md5
+  // to detect if it has changed
 
   ensureResourceBucketExists(bucket) {
     return this.provider.request('S3', 'headBucket', {
