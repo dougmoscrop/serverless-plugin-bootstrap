@@ -27,7 +27,6 @@ test('is happy when there are no changes', t => {
   const plugin = t.context.plugin;
   const provider = t.context.provider;
   const serverless = t.context.serverless;
-  const options = t.context.options;
 
   serverless.utils = {
     readFileSync: sinon.stub().returns({})
@@ -53,13 +52,12 @@ test('rejects when there are changes and execute is not true', t => {
   const plugin = t.context.plugin;
   const provider = t.context.provider;
   const serverless = t.context.serverless;
-  const options = t.context.options;
 
   serverless.utils = {
     readFileSync: sinon.stub().returns({})
   };
 
-  const mock = provider.request = sinon.mock()
+  provider.request = sinon.mock()
     .withArgs('CloudFormation', 'deleteChangeSet')
     .resolves();
 
