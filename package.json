@@ -5,6 +5,7 @@
   "main": "bootstrap.js",
   "scripts": {
     "test": "nyc --all ava",
+    "ava": "ava",
     "preversion": "update-contrib",
     "postpublish": "git push --tags"
   },

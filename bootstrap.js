@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const fs = require('fs');
 const path = require('path');
 
 module.exports = class BootstrapPlugin {
@@ -40,39 +41,42 @@ module.exports = class BootstrapPlugin {
 
     const template = this.serverless.utils.readFileSync(this.config.file);
 
-    this.templateBody = JSON.stringify(template);
-    this.stackName = this.getStackName();
-    this.changeSetName = this.getChangeSetName();
-    this.params = this.getChangeSetParams();
+    return this.packageLocalResources(template.Resources)
+      .then(() => {
+        this.templateBody = JSON.stringify(template);
+        this.stackName = this.getStackName();
+        this.changeSetName = this.getChangeSetName();
+        this.params = this.getChangeSetParams();
 
-    return this.createChangeSet('UPDATE')
-      .catch(e => {
-        if (e.message.match(/does not exist/)) {
-          return this.createChangeSet('CREATE');
-        }
-        throw e;
-      })
-      .then(res => {
-        return this.getChanges(res);
-      })
-      .then(changes => {
-        if (changes.length) {
-          if (this.options.execute) {
-            return this.provider.request('CloudFormation', 'executeChangeSet', {
+        return this.createChangeSet('UPDATE')
+          .catch(e => {
+            if (e.message.match(/does not exist/)) {
+              return this.createChangeSet('CREATE');
+            }
+            throw e;
+          })
+          .then(res => {
+            return this.getChanges(res);
+          })
+          .then(changes => {
+            if (changes.length) {
+              if (this.options.execute) {
+                return this.provider.request('CloudFormation', 'executeChangeSet', {
+                  StackName: this.stackName,
+                  ChangeSetName: this.changeSetName
+                });
+              }
+
+              return Promise.reject(
+                `The stack ${this.stackName} does not match the local template. Review change set ${this.changeSetName} and either update your source code or execute the change set`
+              );
+            }
+
+            return this.provider.request('CloudFormation', 'deleteChangeSet', {
               StackName: this.stackName,
               ChangeSetName: this.changeSetName
             });
-          }
-
-          return Promise.reject(
-            `The stack ${this.stackName} does not match the local template. Review change set ${this.changeSetName} and either update your source code or execute the change set`
-          );
-        }
-
-        return this.provider.request('CloudFormation', 'deleteChangeSet', {
-          StackName: this.stackName,
-          ChangeSetName: this.changeSetName
-        });
+          });
       });
   }
 
@@ -160,4 +164,106 @@ module.exports = class BootstrapPlugin {
         });
       });
   }
+
+  packageLocalResources(resources = {}) {
+    const bucket = `${this.config.stack}-resources`;
+
+    const uploads = Object.keys(resources).reduce((memo, logicalId) => {
+      const resource = resources[logicalId];
+      const properties = resource.Properties;
+
+      if (resource.Type === 'AWS::CloudFormation::Stack') {
+        const url = properties.TemplateURL;
+        
+        if (!this.isRemote(url)) {
+          memo.push(() => {
+            return this.uploadResource(bucket, url)
+              .then(newURL => {
+                properties.TemplateURL = newURL;
+              });
+          });
+        }
+      }
+
+      return memo;
+    }, []);
+
+    if (uploads.length > 0) {
+      return this.ensureResourceBucketExists(bucket)
+        .then(() => {
+          return Promise.all(uploads.map(upload => upload()));
+        });
+    }
+  
+    return Promise.resolve();
+  }
+
+  isRemote(url) {
+    return url && url.indexOf('https://') === 0;
+  }
+
+  ensureResourceBucketExists(bucket) {
+    return this.provider.request('S3', 'headBucket', {
+      Bucket: bucket
+    })
+    .then(() => false)
+    .catch(e => {
+      if (e.statusCode === 404) {
+        return true;
+      }
+      throw new Error('AWS Request Error determining if bootstrap resources bucket exists');
+    })
+    .then(create => {
+      if (create) {
+        return this.provider.request('S3', 'createBucket', {
+          Bucket: bucket
+        });
+      }
+    });
+  }
+
+  uploadResource(bucket, localFile) {
+    const dir = path.dirname(this.config.file);
+    const file = path.join(process.cwd(), dir, localFile);
+
+    return new Promise((resolve, reject) => {
+      const rs = fs.createReadStream(file);
+      const hash = crypto.createHash('md5');
+
+      rs.pipe(hash)
+        .on('error', reject)
+        .on('finish', () => {
+          resolve(hash.read().toString('hex'));
+        });
+    })
+    .then(hash => {
+      const name = path.basename(file, path.extname(file));
+      const key = `${name}-${hash}`;
+
+      return this.provider.request('S3', 'headObject', {
+        Bucket: bucket,
+        Key: key
+      })
+      .then(() => false)
+      .catch(e => {
+        if (e.statusCode === 404) {
+          return true;
+        }
+        throw new Error('AWS Request Error determining if bootstrap resource already uploaded');
+      })
+      .then(upload => {
+        if (upload) {
+          return this.provider.request('S3', 'upload', {
+            Bucket: bucket,
+            Key: key,
+            Body: fs.createReadStream(file)
+          })
+        }
+      })
+      .then(() => {
+        return `https://s3.amazonaws.com/${bucket}/${key}`;
+      });
+    });
+  }
+
 };
