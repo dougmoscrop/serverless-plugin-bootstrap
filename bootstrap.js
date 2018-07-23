@@ -20,6 +20,10 @@ module.exports = class BootstrapPlugin {
           execute: {
             usage: 'Execute the created Change Set',
             default: false
+          },
+          noCheck: {
+            usage: 'Skip checking changes',
+            default: false
           }
         }
       }
@@ -67,11 +71,15 @@ module.exports = class BootstrapPlugin {
                 });
               }
 
+              if (this.options.noCheck) {
+                return Promise.resolve();
+              }
+
               return Promise.reject(
                 `The stack ${this.stackName} does not match the local template. Review change set ${this.changeSetName} and either update your source code or execute the change set`
               );
             }
-
+            
             return this.provider.request('CloudFormation', 'deleteChangeSet', {
               StackName: this.stackName,
               ChangeSetName: this.changeSetName
