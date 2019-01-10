@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const _ = require('lodash');
 
 module.exports = class BootstrapPlugin {
 
@@ -24,6 +25,10 @@ module.exports = class BootstrapPlugin {
           noCheck: {
             usage: 'Skip checking changes',
             default: false
+          },
+          stackPolicyOverride: {
+            usage: 'Path to file containing temporary stack policy to use while executing changes',
+            default: null
           }
         }
       }
@@ -51,41 +56,144 @@ module.exports = class BootstrapPlugin {
         this.stackName = this.getStackName();
         this.changeSetName = this.getChangeSetName();
         this.params = this.getChangeSetParams();
+        this.stackPolicyOverride = this.getStackPolicyOverride();
 
-        return this.createChangeSet('UPDATE')
-          .catch(e => {
-            if (e.message.match(/does not exist/)) {
-              return this.createChangeSet('CREATE');
-            }
-            throw e;
-          })
-          .then(res => {
-            return this.getChanges(res);
-          })
+        return this.getChanges()
           .then(changes => {
-            if (changes.length) {
-              if (this.options.execute) {
-                return this.provider.request('CloudFormation', 'executeChangeSet', {
-                  StackName: this.stackName,
-                  ChangeSetName: this.changeSetName
-                });
-              }
-
-              if (this.options.noCheck) {
-                return Promise.resolve();
-              }
-
-              return Promise.reject(
-                `The stack ${this.stackName} does not match the local template. Review change set ${this.changeSetName} and either update your source code or execute the change set`
-              );
-            }
-            
-            return this.provider.request('CloudFormation', 'deleteChangeSet', {
-              StackName: this.stackName,
-              ChangeSetName: this.changeSetName
-            });
+            return this.getStackPolicy()
+              .then(originalPolicy => {
+                const stackPolicyDiffers = !!(this.config.stackPolicy && !_.isEqual(this.config.stackPolicy, originalPolicy));
+                console.log(`Stack changed: ${!!changes}`);
+                console.log(`Policy changed: ${stackPolicyDiffers}`);
+                if (changes || stackPolicyDiffers) {
+                  if (this.options.execute) {
+                    if (changes) {
+                      const finalStackPolicy = this.config.stackPolicy || originalPolicy;
+                      return this.maybeSetStackPolicyOverride()
+                        .then(() => this.executeChangeSet()) // TODO: Try restoring (but not setting?) policy if execution fails?
+                        .then(() => this.getStackPolicy())
+                        .then(currentStackPolicy => {
+                            if (!_.isEqual(currentStackPolicy, finalStackPolicy)) {
+                              return this.waitForExecuteComplete(changes.changeSetType)
+                                .then(() => this.setStackPolicy(finalStackPolicy));
+                            } else {
+                              console.log('No need to set stack policy after changeset execution.');
+                            }
+                        });
+                    } else {
+                      console.log('No changes to stack except for policy');
+                      return this.setStackPolicy(this.config.stackPolicy);
+                    }
+                  }
+    
+                  if (this.options.noCheck) {
+                    return Promise.resolve();
+                  }
+    
+                  const stackMessage = changes ?
+                    `The stack ${this.stackName} does not match the local template. Review change set ${this.changeSetName} and either update your source code or execute the change set.` :
+                    '';
+                  // TODO: Display a diff of the stack policy?
+                  const policyMessage = stackPolicyDiffers ?
+                    `Stack policy for stack ${this.stackName} does not match the specified policy. Running bootstrap again with --execute will set the new policy (after executing any stack changes).` :
+                    '';
+                  return Promise.reject([stackMessage, policyMessage].filter(message => message.length).join(' '));
+                }
+              });
           });
+        });
+  }
+
+  getChanges() {
+    return this.getChangesOfType('UPDATE')
+      .catch(e => {
+        if (e.message.match(/does not exist/)) {
+          return this.getChangesOfType('CREATE');
+        }
+        throw e;
       });
+  }
+
+  getChangesOfType(changeSetType) {
+    return this.createChangeSet(changeSetType)
+      .then(res => this.extractChanges(res))
+      .then(changes =>
+        changes.length > 0 ?
+          { changes, changeSetType } :
+          this.provider.request('CloudFormation', 'deleteChangeSet', {
+            StackName: this.stackName,
+            ChangeSetName: this.changeSetName
+          })
+          .then(() => null));
+  }
+
+  getStackPolicy() {
+    return this.provider.request('CloudFormation', 'getStackPolicy', {
+      StackName: this.stackName
+    })
+    .then(stackPolicyResponse => stackPolicyResponse.StackPolicyBody ? JSON.parse(stackPolicyResponse.StackPolicyBody) : null);
+  }
+
+  setStackPolicy(policy) {
+    const stackPolicyBody = JSON.stringify(policy, null, 2)
+    console.log('Setting stack policy');
+    return this.provider.request('CloudFormation', 'setStackPolicy', {
+      StackName: this.stackName,
+      StackPolicyBody: stackPolicyBody
+    });
+  }
+
+  maybeSetStackPolicyOverride() {
+    if (!this.stackPolicyOverride) {
+      console.log('No need to set stack policy override (none specified)')
+      return Promise.resolve();
+    }
+
+    return this.getStackPolicy()
+      .then(currentStackPolicy => {
+        if (!currentStackPolicy && !this.config.stackPolicy) {
+          throw new Error('Cannot specify stack policy override with no existing or configured stack policy');
+        }
+
+        if (!currentStackPolicy || !_.isEqual(currentStackPolicy, this.stackPolicyOverride)) {
+          console.log('Setting stack policy override');
+          return this.setStackPolicy(this.stackPolicyOverride);
+        } else {
+          console.log('No need to set stack policy override (same as current)')
+          return Promise.resolve();
+        }
+      });
+  }
+
+  executeChangeSet() {
+    console.log('Executing changeset...');
+    return this.provider.request('CloudFormation', 'executeChangeSet', {
+      StackName: this.stackName,
+      ChangeSetName: this.changeSetName
+    })
+    .then(result => {
+      console.log('Changeset execution initiated');
+      return result;
+    });
+  }
+
+  waitForExecuteComplete(changeSetType) {
+    const waitStateForChangeSetType = {
+      CREATE: "stackCreateComplete",
+      UPDATE: "stackUpdateComplete"
+    };
+    const waitForState = waitStateForChangeSetType[changeSetType];
+    console.log(`Waiting for changeset execution to complete (${waitForState})...`);
+    const credentials = this.provider.getCredentials();
+    const cf = new this.provider.sdk.CloudFormation(credentials);
+    return cf.waitFor(waitForState, {
+      StackName: this.stackName
+    })
+    .promise()
+    .then(result => {
+      console.log('Changeset execution complete');
+      return result;
+    });
   }
 
   getChangeSetParams() {
@@ -107,6 +215,14 @@ module.exports = class BootstrapPlugin {
     }
 
     return params;
+  }
+
+  getStackPolicyOverride() {
+    if (!this.options.stackPolicyOverride) {
+      return null;
+    }
+    const absolutePath = path.resolve(this.options.stackPolicyOverride);
+    return require(absolutePath);
   }
 
   getStackName() {
@@ -131,7 +247,7 @@ module.exports = class BootstrapPlugin {
     return `serverless-bootstrap-${md5}`;
   }
 
-  getChanges(res) {
+  extractChanges(res) {
     if (res.Status === 'FAILED') {
       if (res.StatusReason.match(/The submitted information didn't contain changes/)) {
         return [];
