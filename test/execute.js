@@ -24,7 +24,7 @@ test.beforeEach(t =>  {
   t.context.provider = {};
 });
 
-test('is happy when there are no changes', t => {
+test('happy path', t => {
   const provider = t.context.provider;
   const serverless = t.context.serverless;
 
@@ -32,6 +32,8 @@ test('is happy when there are no changes', t => {
     './print': sinon.stub()
   });
 
+  t.context.options['change-set'] = 'test';
+  
   const plugin = new Plugin(t.context.serverless, t.context.options);
 
   serverless.utils = {
@@ -39,42 +41,41 @@ test('is happy when there are no changes', t => {
   };
 
   const mock = provider.request = sinon.mock()
-    .withArgs('CloudFormation', 'deleteChangeSet')
+    .withArgs('CloudFormation', 'executeChangeSet')
     .resolves();
 
   sinon.stub(plugin, 'getStackName').returns('stackName');
   sinon.stub(plugin, 'getChanges').resolves({ changes: [] })
 
-  return plugin.bootstrap()
+  return plugin.execute()
     .then(() => {
       mock.verify();
       t.pass();
     });
 });
 
-test('is happy when there are changes but does not delete change set', t => {
-  const provider = t.context.provider;
-  const serverless = t.context.serverless;
+test('throws when missing arg', t => {
+    const provider = t.context.provider;
+    const serverless = t.context.serverless;
+  
+    const Plugin = proxyquire('..', {
+      './print': sinon.stub()
+    });
+  
+    const plugin = new Plugin(t.context.serverless, t.context.options);
+  
+    serverless.utils = {
+      readFileSync: sinon.stub().returns({}),
+    };
+  
+    const mock = provider.request = sinon.mock()
+      .never()
+  
+    sinon.stub(plugin, 'getStackName').returns('stackName');
+    sinon.stub(plugin, 'getChanges').resolves({ changes: [] })
+  
+    const err = t.throws(() => plugin.execute());
 
-  const Plugin = proxyquire('..', {
-    './print': sinon.stub()
+    mock.verify();
+    t.is(err.message, 'Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute -c {{changeSetName}})');
   });
-
-  const plugin = new Plugin(t.context.serverless, t.context.options);
-
-  serverless.utils = {
-    readFileSync: sinon.stub().returns({}),
-  };
-
-  const mock = provider.request = sinon.mock()
-    .never()
-
-  sinon.stub(plugin, 'getStackName').returns('stackName');
-  sinon.stub(plugin, 'getChanges').resolves({ changes: [{}] })
-
-  return plugin.bootstrap()
-    .then(() => {
-      mock.verify();
-      t.pass();
-    });
-});

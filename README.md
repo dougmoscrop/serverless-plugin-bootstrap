@@ -2,6 +2,11 @@
 
 This plugin helps with ensuring that CloudFormation stacks that need to exist before your Serverless application are deployed and up-to-date.
 
+## Breaking Changes in 2.0
+
+- The stage name is included in the stack name by default now. You can still use this plugin to bootstrap a stack that is shared between several stacks, by specifying a `stack:` config that uses a name that does not include the stage.
+- `noCheck` is now `--no-bootstrap`
+
 ## Usage
 
 Within your `serverless.yml` you can configure bootstrap behavior:

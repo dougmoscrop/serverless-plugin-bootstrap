@@ -45,14 +45,14 @@ test('is happy when there are no changes', t => {
   sinon.stub(plugin, 'getStackName').returns('stackName');
   sinon.stub(plugin, 'getChanges').resolves({ changes: [] })
 
-  return plugin.bootstrap()
+  return plugin.check()
     .then(() => {
       mock.verify();
       t.pass();
     });
 });
 
-test('is happy when there are changes but does not delete change set', t => {
+test('rejects when there are changes', t => {
   const provider = t.context.provider;
   const serverless = t.context.serverless;
 
@@ -67,14 +67,18 @@ test('is happy when there are changes but does not delete change set', t => {
   };
 
   const mock = provider.request = sinon.mock()
-    .never()
+    .withArgs('CloudFormation', 'deleteChangeSet')
+    .resolves();
 
   sinon.stub(plugin, 'getStackName').returns('stackName');
   sinon.stub(plugin, 'getChanges').resolves({ changes: [{}] })
 
-  return plugin.bootstrap()
+  return plugin.check()
     .then(() => {
-      mock.verify();
-      t.pass();
+        t.fail('should not reach here');
+    })
+    .catch(e => {
+      t.is(mock.callCount, 0);
+      t.is(e.message, 'The stackName stack does not match the local template. Use the \'serverless bootstrap\' command to view the diff and either update your source code or apply the changes');
     });
 });

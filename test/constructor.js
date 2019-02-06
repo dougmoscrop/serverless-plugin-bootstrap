@@ -21,17 +21,24 @@ test.beforeEach(t =>  {
 test('it has the right hooks', t => {
   const plugin = t.context.plugin;
 
-  const stub = sinon.stub(plugin, 'bootstrap').resolves();
+  const bootstrap = sinon.stub(plugin, 'bootstrap').resolves();
+  const execute = sinon.stub(plugin, 'execute').resolves();
+  const check = sinon.stub(plugin, 'check').resolves();
 
   t.true(typeof plugin.hooks === 'object');
   t.true(typeof plugin.hooks['bootstrap:bootstrap'] === 'function');
+  t.true(typeof plugin.hooks['bootstrap:execute:execute'] === 'function');
   t.true(typeof plugin.hooks['before:deploy:deploy'] === 'function');
 
   plugin.hooks['bootstrap:bootstrap']();
 
-  t.true(stub.calledOnce);
+  t.true(bootstrap.calledOnce);
 
   plugin.hooks['before:deploy:deploy']();
 
-  t.true(stub.calledTwice);
+  t.true(check.calledOnce);
+
+  plugin.hooks['bootstrap:execute:execute']();
+
+  t.true(execute.calledOnce);
 });

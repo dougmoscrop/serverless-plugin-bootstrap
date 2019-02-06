@@ -8,7 +8,12 @@ test.beforeEach(t =>  {
   t.context.serverless ={
     service: {
       service: 'foo-service',
-      provider: {}
+      provider: {},
+      custom: {
+        bootstrap: {
+          file: 'test.json'
+        }
+      }
     },
     getProvider: () => t.context.provider
   };
@@ -25,16 +30,13 @@ test('getStackName generates name', t => {
 
   const name = plugin.getStackName();
 
-  t.deepEqual(name, 'foo-service-file');
+  t.deepEqual(name, 'foo-service-test');
 });
 
 test('getStackName returns custom name', t => {
   const plugin = t.context.plugin;
 
-  plugin.config = {
-    file: 'blah/file.json',
-    stack: 'bar'
-  };
+  t.context.serverless.service.custom.bootstrap.stack = 'bar';
 
   const name = plugin.getStackName();
 
