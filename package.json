@@ -7,7 +7,6 @@
     "test": "nyc --all ava",
     "posttest": "eslint .",
     "ava": "ava",
-    "preversion": "update-contrib",
     "postpublish": "git push --tags"
   },
   "repository": {
@@ -29,8 +28,7 @@
     "eslint": "^5.14.1",
     "nyc": "^13.3.0",
     "proxyquire": "^2.1.0",
-    "sinon": "^7.2.5",
-    "update-contributors": "^0.3.1"
+    "sinon": "^7.2.5"
   },
   "contributors": [
     "Doug Moscrop (https://github.com/dougmoscrop)"
@@ -39,8 +37,7 @@
     "@cfn/diff": "^1.0.5",
     "@cfn/pkg": "^1.1.0",
     "chalk": "^2.4.2",
-    "deepdash": "^2.0.2",
-    "js-yaml": "^3.12.2",
-    "lodash": "^4.17.11"
+    "deep-diff": "^1.0.2",
+    "js-yaml": "^3.12.2"
   }
 }

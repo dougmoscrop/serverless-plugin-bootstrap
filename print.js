@@ -3,21 +3,7 @@
 const chalk = require('chalk');
 const YAML = require('js-yaml');
 
-const lodash = require('lodash');
-const deepDash = require('deepdash');
-
-const { isObject, transform, isEqual, forEachDeep } = deepDash(lodash);
-
-const DIFF = Symbol();
-
-function difference(object, base) {
-	return transform(object, (result, value, key) => {
-		if (isEqual(value, base[key])) {
-      return;
-    }
-    result[key] = isObject(value) && isObject(base[key]) ? difference(value, base[key]) : { [DIFF]: { from: value, to: base[key] } };
-	});
-}
+const { diff } = require('deep-diff');
 
  class Printer {
 
@@ -105,26 +91,33 @@ function difference(object, base) {
     }
 
     printDiff(From, To, indentation) {
-      forEachDeep(difference(From, To), (value, key, parentValue, { path }) => {
-        if (value[DIFF]) {
-          const { from, to } = value[DIFF];
+      diff(From, To).forEach(({ kind, path, lhs, rhs }) => {
+        this.print(chalk.white, '');
+        this.print(chalk.white, path.join('.'), indentation);
 
-          this.print(chalk.white, `• ${path}`, indentation);
-
-          if (to === undefined) {
-            this.printObj(chalk.red, from, indentation + 2);
-          } else {
-            this.print(chalk.dim, from, indentation + 2);
-            this.print(chalk.magenta, to, indentation + 2);
-          }
+        switch (kind) {
+          case 'N':
+            this.printObj(chalk.green, rhs, indentation + 2);
+            return;
+          case 'D':
+            this.printObj(chalk.red, lhs, indentation + 2);
+            return;
+          case 'E':
+            this.printObj(chalk.dim, lhs, indentation + 2);
+            this.printObj(chalk.magenta, rhs, indentation + 2);
+            return;
         }
       });
     }
   
     printObj(colour, obj, indentation) {
-      if (Object.keys(obj).length > 0) {
-        const str = YAML.safeDump(obj);
-        this.print(colour, str, indentation);
+      if (typeof obj === 'object' || Array.isArray(obj)) {
+        if (Object.keys(obj).length > 0) {
+          const str = YAML.safeDump(obj);
+          this.print(colour, str, indentation);
+        }
+      } else {
+        this.print(colour, obj.toString(), indentation);
       }
     }
   
