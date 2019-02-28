@@ -91,23 +91,27 @@ const { diff } = require('deep-diff');
     }
 
     printDiff(From, To, indentation) {
-      diff(From, To).forEach(({ kind, path, lhs, rhs }) => {
-        this.print(chalk.white, '');
-        this.print(chalk.white, path.join('.'), indentation);
+      const differences = diff(From, To);
 
-        switch (kind) {
-          case 'N':
-            this.printObj(chalk.green, rhs, indentation + 2);
-            return;
-          case 'D':
-            this.printObj(chalk.red, lhs, indentation + 2);
-            return;
-          case 'E':
-            this.printObj(chalk.dim, lhs, indentation + 2);
-            this.printObj(chalk.magenta, rhs, indentation + 2);
-            return;
-        }
-      });
+      if (differences) {
+        differences.forEach(({ kind, path, lhs, rhs }) => {
+          this.print(chalk.white, '');
+          this.print(chalk.white, path.join('.'), indentation);
+
+          switch (kind) {
+            case 'N':
+              this.printObj(chalk.green, rhs, indentation + 2);
+              return;
+            case 'D':
+              this.printObj(chalk.red, lhs, indentation + 2);
+              return;
+            case 'E':
+              this.printObj(chalk.dim, lhs, indentation + 2);
+              this.printObj(chalk.magenta, rhs, indentation + 2);
+              return;
+          }
+        });
+      }
     }
   
     printObj(colour, obj, indentation) {
