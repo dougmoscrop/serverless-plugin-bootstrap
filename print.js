@@ -49,7 +49,7 @@ function difference(object, base) {
         return;
       }
 
-      const title = `${chalk.dim('>>')} ${chalk.cyan(type.toUpperCase())}S`;
+      const title = `${chalk.dim('>>')} ${chalk.cyan(type.toUpperCase() + 'S')}`;
       const field = `${type}Change`;
       const label = `${type}Key`;
 
@@ -76,6 +76,7 @@ function difference(object, base) {
             break;
           case 'Remove':
             this.print(chalk.red, `- ${key}`);
+            this.printObj(chalk.red, From, 4);
             break;
           case 'Modify':
             this.print(chalk.yellow, `~ ${key}`);
@@ -104,10 +105,18 @@ function difference(object, base) {
     }
 
     printDiff(From, To, indentation) {
-      forEachDeep(difference(From, To), (value, key, path) => {
+      forEachDeep(difference(From, To), (value, key, parentValue, { path }) => {
         if (value[DIFF]) {
           const { from, to } = value[DIFF];
-          this.print(chalk.white, `${path} ${chalk.dim(from)} -> ${chalk.magenta(to)}`, indentation);
+
+          this.print(chalk.white, `• ${path}`, indentation);
+
+          if (to === undefined) {
+            this.printObj(chalk.red, from, indentation + 2);
+          } else {
+            this.print(chalk.dim, from, indentation + 2);
+            this.print(chalk.magenta, to, indentation + 2);
+          }
         }
       });
     }

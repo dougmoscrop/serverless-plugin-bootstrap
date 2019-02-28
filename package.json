@@ -36,7 +36,7 @@
     "Doug Moscrop (https://github.com/dougmoscrop)"
   ],
   "dependencies": {
-    "@cfn/diff": "^1.0.3",
+    "@cfn/diff": "^1.0.5",
     "@cfn/pkg": "^1.1.0",
     "chalk": "^2.4.2",
     "deepdash": "^2.0.2",
