@@ -24,20 +24,20 @@
   },
   "homepage": "https://github.com/dougmoscrop/serverless-plugin-bootstrap#readme",
   "devDependencies": {
-    "ava": "^1.2.1",
-    "eslint": "^5.14.1",
+    "ava": "^1.4.1",
+    "eslint": "^5.16.0",
     "nyc": "^13.3.0",
     "proxyquire": "^2.1.0",
-    "sinon": "^7.2.5"
+    "sinon": "^7.3.1"
   },
   "contributors": [
     "Doug Moscrop (https://github.com/dougmoscrop)"
   ],
   "dependencies": {
-    "@cfn/diff": "^1.0.5",
+    "@cfn/diff": "^1.0.6",
     "@cfn/pkg": "^1.1.0",
     "chalk": "^2.4.2",
     "deep-diff": "^1.0.2",
-    "js-yaml": "^3.12.2"
+    "js-yaml": "^3.13.0"
   }
 }
