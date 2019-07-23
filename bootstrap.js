@@ -62,7 +62,7 @@ module.exports = class BootstrapPlugin {
 
     throw new Error('Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute -c {{changeSetName}})');
   }
-  
+
   check() {
     const { provider, serverless } = this;
     const { bootstrap = true } = this.options;
@@ -97,7 +97,7 @@ module.exports = class BootstrapPlugin {
           return print(serverless, stackName, changeSetName, changes);
         } else {
           serverless.cli.log('[serverless-plugin-bootstrap]: No changes.');
-          
+
           return provider.request('CloudFormation', 'deleteChangeSet', {
             StackName: stackName,
             ChangeSetName: changeSetName
