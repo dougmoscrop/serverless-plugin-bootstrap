@@ -35,6 +35,21 @@ test('works (resource change)', t => {
     t.true(log.callCount > 1);
 });
 
+test('works (parameter change - missing path)', t => {
+  const log = sinon.stub();
+  const consoleLog = sinon.stub();
+  const serverless = {
+      cli: {
+          log,
+          consoleLog,
+      }
+  };
+
+  print(serverless, 'stack-name', 'change-set-name', [{ Type: 'Parameter', ParameterChange: { Action: 'Modify', From: 1, To: 2 } }]);
+
+  t.true(log.callCount > 1);
+});
+
 test('throws on unknown action', t => {
     const log = sinon.stub();
     const consoleLog = sinon.stub();
@@ -45,7 +60,7 @@ test('throws on unknown action', t => {
         }
     };
 
-    const err = t.throws(() => 
+    const err = t.throws(() =>
         print(serverless, 'stack-name', 'change-set-name', [{ Type: 'Resource', ResourceChange: { Action: 'Fail', From: {}, To: {} } }])
     );
     t.is(err.message, 'Unknown Action: Fail');

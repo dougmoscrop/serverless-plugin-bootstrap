@@ -76,9 +76,9 @@ const { diff } = require('deep-diff');
                 this.print(chalk.white, '↪  ' + chalk.yellow(value) + ` (${key})`, 6);
               });
             }
-      
+
             this.printDiff(From, To, 4);
-      
+
             if (change.Template) {
               this.print(chalk.dim, '<Template Content>', 6);
               this.printDiff(change.Template.From, change.Template.To, 8);
@@ -94,7 +94,7 @@ const { diff } = require('deep-diff');
       const differences = diff(From, To);
 
       if (differences) {
-        differences.forEach(({ kind, path, lhs, rhs }) => {
+        differences.forEach(({ kind, path = [], lhs, rhs }) => {
           this.print(chalk.white, '');
           this.print(chalk.white, path.join('.'), indentation);
 
@@ -113,7 +113,7 @@ const { diff } = require('deep-diff');
         });
       }
     }
-  
+
     printObj(colour, obj, indentation) {
       if (typeof obj === 'object' || Array.isArray(obj)) {
         if (Object.keys(obj).length > 0) {
@@ -124,7 +124,7 @@ const { diff } = require('deep-diff');
         this.print(colour, obj.toString(), indentation);
       }
     }
-  
+
     print(colour, str, indentation = 1) {
       const indented = str.replace(/^(?!\s*$)/mg, ' '.repeat(indentation));
       this.serverless.cli.consoleLog(colour(indented));
