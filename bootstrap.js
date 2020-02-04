@@ -118,7 +118,7 @@ module.exports = class BootstrapPlugin {
     const description = 'Created by the Serverless Bootstrap plugin';
 
     const template = serverless.utils.readFileSync(file);
-    const credentials = provider.getCredentials();
+    const credentials = this.getCredentials(provider);
 
     const bucketName = bucket || `${stackName}-resources`;
     const basedir = path.dirname(file);
@@ -130,6 +130,13 @@ module.exports = class BootstrapPlugin {
         };
         return diff(options);
       });
+  }
+
+  getCredentials(provider) {
+    const credentials = provider.getCredentials();
+    const region = provider.getRegion();
+    credentials.region = region;
+    return credentials;
   }
 
   getStackName() {
