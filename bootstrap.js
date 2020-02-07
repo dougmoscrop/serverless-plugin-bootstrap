@@ -23,9 +23,8 @@ module.exports = class BootstrapPlugin {
             usage: 'Execute a ChangeSet',
             options: {
               ['change-set']: {
-                usage: 'The name of the ChangeSet to execute',
+                usage: 'The ID (ARN) of the ChangeSet to execute',
                 required: true,
-                shortcut: 'c'
               }
             },
             lifecycleEvents: ['execute']
@@ -49,21 +48,18 @@ module.exports = class BootstrapPlugin {
 
   execute() {
     const { provider } = this;
-    const changeSetName = this.options['change-set'];
+    const changeSetId = this.options['change-set'];
 
-    const stackName = this.getStackName();
-
-    if (typeof changeSetName === 'string') {
+    if (typeof changeSetId === 'string') {
       return provider.request('CloudFormation', 'executeChangeSet', {
-        StackName: stackName,
-        ChangeSetName: changeSetName
+        ChangeSetName: changeSetId
       });
     }
 
-    throw new Error('Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute -c {{changeSetName}})');
+    throw new Error('Bootstrap: You must specify a ChangeSet ID/ARN (serverless bootstrap execute --change-set {{changeSetId}})');
   }
 
-  check() {
+  async check() {
     const { provider, serverless } = this;
     const { bootstrap = true } = this.options;
 
@@ -72,46 +68,47 @@ module.exports = class BootstrapPlugin {
       return Promise.resolve();
     }
 
-    const stackName = this.getStackName();
+    for await (const stack of this.stacks) {
+      const stackName = this.getStackName(stack);
 
-    return this.getChanges(stackName)
-      .then(({ changeSetName, changes }) => {
-        if (changes.length > 0) {
-          throw new Error(`The ${stackName} stack does not match the local template. Use the 'serverless bootstrap' command to view the diff and either update your source code or apply the changes`);
-        }
+      const { changeSetName, changes } = await this.getChanges(stackName);
 
-        return provider.request('CloudFormation', 'deleteChangeSet', {
+      if (changes.length > 0) {
+        throw new Error(`The ${stackName} stack does not match the local template. Use the 'serverless bootstrap' command to view the diff and either update your source code or apply the changes`);
+      }
+
+      return provider.request('CloudFormation', 'deleteChangeSet', {
+        StackName: stackName,
+        ChangeSetName: changeSetName
+      });
+    }
+  }
+
+  async bootstrap() {
+    const { provider, serverless } = this;
+
+    for await (const stack of this.stacks) {
+      const stackName = this.getStackName(stack);
+
+      const { changeSetId, changes } = await this.getChanges(stackName, stack, true);
+
+      if (changes.length > 0) {
+        print(serverless, stackName, changeSetId, changes);
+        return;
+      } else {
+        await provider.request('CloudFormation', 'deleteChangeSet', {
           StackName: stackName,
-          ChangeSetName: changeSetName
+          ChangeSetName: changeSetId
         });
-      });
+      }
+    }
+
+    serverless.cli.log('[serverless-plugin-bootstrap]: No changes.');
   }
 
-  bootstrap() {
+  async getChanges(stackName, stack, detailed = false) {
     const { provider, serverless } = this;
-    const stackName = this.getStackName();
-
-    return this.getChanges(stackName, true)
-      .then(({ changeSetName, changes }) => {
-        if (changes.length > 0) {
-          return print(serverless, stackName, changeSetName, changes);
-        } else {
-          serverless.cli.log('[serverless-plugin-bootstrap]: No changes.');
-
-          return provider.request('CloudFormation', 'deleteChangeSet', {
-            StackName: stackName,
-            ChangeSetName: changeSetName
-          })
-        }
-      });
-  }
-
-  getChanges(stackName, detailed = false) {
-    const { provider, serverless } = this;
-    const { service } = serverless;
-    const { custom = {} } = service;
-    const { bootstrap = {} } = custom;
-    const { bucket, file, parameters, capabilities = [] } = bootstrap;
+    const { bucket, file, region, parameters, capabilities = [] } = stack;
 
     const roleArn = serverless.service.provider.cfnRole;
     const prefix = 'serverless-bootstrap-';
@@ -123,35 +120,40 @@ module.exports = class BootstrapPlugin {
     const bucketName = bucket || `${stackName}-resources`;
     const basedir = path.dirname(file);
 
-    return pkg({ credentials, template, basedir, bucketName })
-      .then(() => {
-        const options = {
-          credentials, prefix, description, capabilities, stackName, roleArn, template, parameters, detailed
-        };
-        return diff(options);
-      });
+    await pkg({ credentials, template, basedir, bucketName });
+
+    return await diff({
+      credentials, prefix, description, capabilities, stackName, roleArn, template, parameters, detailed
+    });
   }
 
-  getCredentials(provider) {
-    const credentials = provider.getCredentials();
-    const region = provider.getRegion();
-    credentials.region = region;
-    return credentials;
+  getCredentials(provider, region = provider.getRegion()) {
+    return { ...provider.getCredentials(), region };
   }
 
-  getStackName() {
+  getStackName({ stack, file }) {
     const { serverless } = this;
     const { service } = serverless;
-    const { custom = {} } = service;
-    const { bootstrap = {} } = custom;
-    const { stack, file } = bootstrap;
 
-    assert(file, 'serverless-plugin-bootstrap: must specify custom.bootstrap.file');
+    assert(file, 'serverless-plugin-bootstrap: must specify bootstrap file');
 
     const fileName = path.basename(file, path.extname(file));
     const serviceName = service.service;
 
     return stack || `${serviceName}-${fileName}`;
+  }
+
+  get stacks() {
+    const { serverless } = this;
+    const { service } = serverless;
+    const { custom = {} } = service;
+    const { bootstrap = {} } = custom;
+
+    if (bootstrap) {
+      return [].concat(bootstrap);
+    } else {
+      throw new Error('serverless-plugin-bootstrap: no bootstrap config in custom.bootstrap');
+    }
   }
 
 };

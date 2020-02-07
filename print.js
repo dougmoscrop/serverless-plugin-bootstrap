@@ -27,7 +27,7 @@ const { diff } = require('deep-diff');
       this.printSection(Output, 'Output');
 
       this.print(chalk.white, '');
-      this.serverless.cli.log(`[serverless-plugin-bootstrap] If the above changes look appropriate, you can run 'serverless bootstrap execute -c ${changeSetName}'`);
+      this.serverless.cli.log(`[serverless-plugin-bootstrap] If the above changes look appropriate, you can run 'serverless bootstrap execute --changes-set ${changeSetName}'`);
     }
 
     printSection(values = [], type) {
