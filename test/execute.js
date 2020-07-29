@@ -33,7 +33,7 @@ test('happy path', t => {
   });
 
   t.context.options['change-set'] = 'test';
-  
+
   const plugin = new Plugin(t.context.serverless, t.context.options);
 
   serverless.utils = {
@@ -57,25 +57,25 @@ test('happy path', t => {
 test('throws when missing arg', t => {
     const provider = t.context.provider;
     const serverless = t.context.serverless;
-  
+
     const Plugin = proxyquire('..', {
       './print': sinon.stub()
     });
-  
+
     const plugin = new Plugin(t.context.serverless, t.context.options);
-  
+
     serverless.utils = {
       readFileSync: sinon.stub().returns({}),
     };
-  
+
     const mock = provider.request = sinon.mock()
       .never()
-  
+
     sinon.stub(plugin, 'getStackName').returns('stackName');
     sinon.stub(plugin, 'getChanges').resolves({ changes: [] })
-  
+
     const err = t.throws(() => plugin.execute());
 
     mock.verify();
-    t.is(err.message, 'Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute -c {{changeSetName}})');
+    t.is(err.message, 'Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute --change-set {{changeSetName}})');
   });

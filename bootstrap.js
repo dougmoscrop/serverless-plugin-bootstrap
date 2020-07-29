@@ -25,7 +25,6 @@ module.exports = class BootstrapPlugin {
               ['change-set']: {
                 usage: 'The name of the ChangeSet to execute',
                 required: true,
-                shortcut: 'c'
               }
             },
             lifecycleEvents: ['execute']
@@ -60,7 +59,7 @@ module.exports = class BootstrapPlugin {
       });
     }
 
-    throw new Error('Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute -c {{changeSetName}})');
+    throw new Error('Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute --change-set {{changeSetName}})');
   }
 
   check() {
