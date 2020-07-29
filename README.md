@@ -34,3 +34,45 @@ The bootstrap config block supports the following additional keys as options:
 `stack`: this overrides the stack name, which defaults to `${service}-${fileBaseNameWithoutExtension}`
 
 `capabilities`: this is an array of capabilities, such as `CAPABILITY_IAM` or `CAPABILITY_NAMED_IAM` which may be required depending on the resources in your bootstrap template.
+
+## bootstrap.json
+
+The `bootstrap.json` (`yml` is also supported) file referenced above is a regular CloudFormation template. It is not parsed via Serverless, so no variable substitution is performed (you can use Parameters to pass info in to the stack, such as the stage or region).
+
+For example, it might look like (as YAML):
+
+```yml
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Bootstrap stack
+
+Parameters:
+
+  service:
+    Description: Name of the service
+    Type: String
+
+  stage:
+    Description: Usually one of test, stable or prod
+    Type: String
+
+Outputs:
+
+  monitoringTopicARN:
+      Description: ARN of the monitoring SNS topic
+      Value:
+        Ref: MonitoringTopic
+      Export:
+        Name:
+          Fn::Sub: ${service}-${stage}-monitoring-topic-arn
+
+Resources:
+
+  MonitoringTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName:
+        Fn::Sub: ${service}-${stage}-monitoring
+```
