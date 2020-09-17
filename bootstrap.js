@@ -6,7 +6,7 @@ const path = require('path');
 const pkg = require('@cfn/pkg');
 const diff = require('@cfn/diff');
 
-const print = require('./print');
+const { printChanges: print, printStackPolicy } = require('./print');
 
 module.exports = class BootstrapPlugin {
 
@@ -90,7 +90,8 @@ module.exports = class BootstrapPlugin {
     const { provider, serverless } = this;
     const stackName = this.getStackName();
 
-    return this.getChanges(stackName, true)
+    return this.updateStackPolicy(stackName)
+      .then(() => this.getChanges(stackName, true))
       .then(({ changeSetName, changes }) => {
         if (changes.length > 0) {
           return print(serverless, stackName, changeSetName, changes);
@@ -103,6 +104,25 @@ module.exports = class BootstrapPlugin {
           })
         }
       });
+  }
+
+  updateStackPolicy(stackName) {
+    const { provider, serverless } = this;
+    const { service } = serverless;
+    const { custom = {} } = service;
+    const { bootstrap = {} } = custom;
+    const { stackPolicy = null } = bootstrap;
+
+    if (!stackPolicy) {
+      return Promise.resolve();
+    }
+
+    printStackPolicy(serverless, stackName, stackPolicy);
+
+    return provider.request('CloudFormation', 'setStackPolicy', {
+      StackName: stackName,
+      StackPolicyBody: stackPolicy
+    });
   }
 
   getChanges(stackName, detailed = false) {

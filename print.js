@@ -11,6 +11,11 @@ const { diff } = require('deep-diff');
       this.serverless = serverless;
     }
 
+    printStackPolicy(stackName, stackPolicy) {
+      this.serverless.cli.log(`[serverless-plugin-bootstrap] The stack policy for stack '${stackName}' is:`);
+      this.printObj(chalk.white, stackPolicy);
+    }
+
     printChanges(stackName, changeSetName, changes) {
       this.serverless.cli.log(`[serverless-plugin-bootstrap] The stack '${stackName}' differs from your local infrastructure code.`);
       this.serverless.cli.log(`[serverless-plugin-bootstrap] Make sure your code is up to date and review the following changes.`);
@@ -131,6 +136,11 @@ const { diff } = require('deep-diff');
     }
  }
 
-module.exports = (serverless, stackName, changeSetName, changes) => {
-  return new Printer(serverless).printChanges(stackName, changeSetName, changes);
-};
+module.exports = {
+  printChanges: (serverless, stackName, changeSetName, changes) => {
+    return new Printer(serverless).printChanges(stackName, changeSetName, changes);
+  },
+  printStackPolicy: (serverless, stackName, stackPolicy) => {
+    return new Printer(serverless).printStackPolicy(stackName, stackPolicy);
+  },
+}
