@@ -17,6 +17,11 @@ service: foo
 custom:
   bootstrap:
     file: "cloudformation/bootstrap.json"
+    stackPolicy:
+      - Effect: ''
+        ...
+      - Effect: ''
+        ...
 ```
 
 During a `serverless deploy`, this plugin will ensure that the stack `foo-bootstrap` exists and is up to date. If not, the deploy will fail. Upon failure, a CloudFormation Change Set will be left that you can review in the AWS console and execute. It's also possible your local copy of `bootsrap.json` is out of date, and you need to git pull/rebase.
@@ -26,6 +31,8 @@ This plugin also adds a command, `bootstrap`, which does the check without a dep
 `serverless bootstrap`
 
 The bootstrap command supports an optional `--execute` option, which will immediately apply the changes. This is most useful for the first time you are deploying, the rest of the time you should probably review the change set!
+
+The bootstrap command will set the stack policy if one is provided. Check out AWS [example policies](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html#stack-policy-intro-example) for supported values.
 
 ## Options
 
