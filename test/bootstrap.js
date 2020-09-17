@@ -90,9 +90,6 @@ test('sets the stack policy when passed', t => {
 
   const plugin = new Plugin(t.context.serverless, t.context.options);
 
-  serverless.utils = {
-    readFileSync: sinon.stub().returns({}),
-  };
   const testStackPolicy = service.custom.bootstrap.stackPolicy = [{
     Effect: 'Deny',
     Principal: '*',
@@ -103,9 +100,8 @@ test('sets the stack policy when passed', t => {
   const mock = provider.request = sinon.stub().resolves();
 
   sinon.stub(plugin, 'getStackName').returns('stackName');
-  sinon.stub(plugin, 'getChanges').resolves({ changes: [{}] })
 
-  return plugin.bootstrap()
+  return plugin.updateStackPolicy()
     .then(() => {
       sinon.assert.calledOnceWithExactly(mock, 'CloudFormation', 'setStackPolicy', {
         StackName: 'stackName',
@@ -113,4 +109,25 @@ test('sets the stack policy when passed', t => {
       });
       t.pass();
     });
+});
+
+test('throws error when policy not passed', t => {
+  const provider = t.context.provider;
+
+  const Plugin = proxyquire('..', {
+    './print': { printChanges: sinon.stub(), printStackPolicy: sinon.stub() }
+  });
+
+  const plugin = new Plugin(t.context.serverless, t.context.options);
+
+  const mock = provider.request = sinon.stub().resolves();
+
+  sinon.stub(plugin, 'getStackName').returns('stackName');
+
+  t.throws(() => {
+    plugin.updateStackPolicy();
+  });
+
+  sinon.assert.notCalled(mock);
+  t.pass();
 });

@@ -28,6 +28,10 @@ module.exports = class BootstrapPlugin {
               }
             },
             lifecycleEvents: ['execute']
+          },
+          policy: {
+            usage: 'Applies a policy to the bootstrap stack',
+            lifecycleEvents: ['policy']
           }
         }
       },
@@ -42,6 +46,7 @@ module.exports = class BootstrapPlugin {
     this.hooks = {
       'bootstrap:bootstrap': () => this.bootstrap(),
       'bootstrap:execute:execute': () => this.execute(),
+      'bootstrap:policy:policy': () => this.updateStackPolicy(),
       'before:deploy:deploy': () => this.check()
     };
   }
@@ -90,8 +95,7 @@ module.exports = class BootstrapPlugin {
     const { provider, serverless } = this;
     const stackName = this.getStackName();
 
-    return this.updateStackPolicy(stackName)
-      .then(() => this.getChanges(stackName, true))
+    return this.getChanges(stackName, true)
       .then(({ changeSetName, changes }) => {
         if (changes.length > 0) {
           return printChanges(serverless, stackName, changeSetName, changes);
@@ -106,15 +110,16 @@ module.exports = class BootstrapPlugin {
       });
   }
 
-  updateStackPolicy(stackName) {
+  updateStackPolicy() {
     const { provider, serverless } = this;
     const { service } = serverless;
     const { custom = {} } = service;
     const { bootstrap = {} } = custom;
     const { stackPolicy = null } = bootstrap;
+    const stackName = this.getStackName();
 
     if (!stackPolicy) {
-      return Promise.resolve();
+      throw new Error('Must add \'stackPolicy\' to the bootstrap configuration.');
     }
 
     const statement = [].concat(stackPolicy);

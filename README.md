@@ -32,7 +32,9 @@ This plugin also adds a command, `bootstrap`, which does the check without a dep
 
 The bootstrap command supports an optional `--execute` option, which will immediately apply the changes. This is most useful for the first time you are deploying, the rest of the time you should probably review the change set!
 
-The bootstrap command will set the stack policy if one is provided. Check out AWS [example policies](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html#stack-policy-intro-example) for supported values.
+`serverless bootstrap policy`
+
+The bootstrap policy sub command will set the stack policy from `custom.bootstrap.stackPolicy` in your serverless config. Check out AWS [example policies](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html#stack-policy-intro-example) for supported policy values.
 
 ## Options
 
