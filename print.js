@@ -1,4 +1,4 @@
- 'use strict';
+'use strict';
 
 const chalk = require('chalk');
 const YAML = require('js-yaml');
@@ -9,6 +9,11 @@ const { diff } = require('deep-diff');
 
     constructor(serverless) {
       this.serverless = serverless;
+    }
+
+    printStackPolicy(stackName, stackPolicy) {
+      this.serverless.cli.log(`[serverless-plugin-bootstrap] Updating the stack policy for stack '${stackName}' to:`);
+      this.printObj(chalk.white, stackPolicy);
     }
 
     printChanges(stackName, changeSetName, changes) {
@@ -131,6 +136,11 @@ const { diff } = require('deep-diff');
     }
  }
 
-module.exports = (serverless, stackName, changeSetName, changes) => {
-  return new Printer(serverless).printChanges(stackName, changeSetName, changes);
-};
+module.exports = {
+  printChanges: (serverless, stackName, changeSetName, changes) => {
+    return new Printer(serverless).printChanges(stackName, changeSetName, changes);
+  },
+  printStackPolicy: (serverless, stackName, stackPolicy) => {
+    return new Printer(serverless).printStackPolicy(stackName, stackPolicy);
+  },
+}

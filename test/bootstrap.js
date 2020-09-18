@@ -5,7 +5,7 @@ const sinon = require('sinon');
 const proxyquire = require('proxyquire');
 
 test.beforeEach(t =>  {
-  t.context.serverless ={
+  t.context.serverless = {
     cli: {
       log: sinon.stub(),
     },
@@ -29,7 +29,7 @@ test('is happy when there are no changes', t => {
   const serverless = t.context.serverless;
 
   const Plugin = proxyquire('..', {
-    './print': sinon.stub()
+    './print': { printChanges: sinon.stub(), printStackPolicy: sinon.stub() }
   });
 
   const plugin = new Plugin(t.context.serverless, t.context.options);
@@ -57,7 +57,7 @@ test('is happy when there are changes but does not delete change set', t => {
   const serverless = t.context.serverless;
 
   const Plugin = proxyquire('..', {
-    './print': sinon.stub()
+    './print': { printChanges: sinon.stub(), printStackPolicy: sinon.stub() }
   });
 
   const plugin = new Plugin(t.context.serverless, t.context.options);
@@ -77,4 +77,57 @@ test('is happy when there are changes but does not delete change set', t => {
       mock.verify();
       t.pass();
     });
+});
+
+test('sets the stack policy when passed', t => {
+  const provider = t.context.provider;
+  const serverless = t.context.serverless;
+  const service = serverless.service;
+
+  const Plugin = proxyquire('..', {
+    './print': { printChanges: sinon.stub(), printStackPolicy: sinon.stub() }
+  });
+
+  const plugin = new Plugin(t.context.serverless, t.context.options);
+
+  const testStackPolicy = service.custom.bootstrap.stackPolicy = [{
+    Effect: 'Deny',
+    Principal: '*',
+    Action: 'Update:*',
+    Resource: '*'
+  }];
+
+  const mock = provider.request = sinon.stub().resolves();
+
+  sinon.stub(plugin, 'getStackName').returns('stackName');
+
+  return plugin.updateStackPolicy()
+    .then(() => {
+      sinon.assert.calledOnceWithExactly(mock, 'CloudFormation', 'setStackPolicy', {
+        StackName: 'stackName',
+        StackPolicyBody: JSON.stringify({ Statement: testStackPolicy })
+      });
+      t.pass();
+    });
+});
+
+test('throws error when policy not passed', t => {
+  const provider = t.context.provider;
+
+  const Plugin = proxyquire('..', {
+    './print': { printChanges: sinon.stub(), printStackPolicy: sinon.stub() }
+  });
+
+  const plugin = new Plugin(t.context.serverless, t.context.options);
+
+  const mock = provider.request = sinon.stub().resolves();
+
+  sinon.stub(plugin, 'getStackName').returns('stackName');
+
+  t.throws(() => {
+    plugin.updateStackPolicy();
+  });
+
+  sinon.assert.notCalled(mock);
+  t.pass();
 });

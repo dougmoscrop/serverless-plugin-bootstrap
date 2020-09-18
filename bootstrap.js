@@ -6,7 +6,7 @@ const path = require('path');
 const pkg = require('@cfn/pkg');
 const diff = require('@cfn/diff');
 
-const print = require('./print');
+const { printChanges, printStackPolicy } = require('./print');
 
 module.exports = class BootstrapPlugin {
 
@@ -28,6 +28,10 @@ module.exports = class BootstrapPlugin {
               }
             },
             lifecycleEvents: ['execute']
+          },
+          policy: {
+            usage: 'Applies a policy to the bootstrap stack',
+            lifecycleEvents: ['policy']
           }
         }
       },
@@ -42,6 +46,7 @@ module.exports = class BootstrapPlugin {
     this.hooks = {
       'bootstrap:bootstrap': () => this.bootstrap(),
       'bootstrap:execute:execute': () => this.execute(),
+      'bootstrap:policy:policy': () => this.updateStackPolicy(),
       'before:deploy:deploy': () => this.check()
     };
   }
@@ -93,7 +98,7 @@ module.exports = class BootstrapPlugin {
     return this.getChanges(stackName, true)
       .then(({ changeSetName, changes }) => {
         if (changes.length > 0) {
-          return print(serverless, stackName, changeSetName, changes);
+          return printChanges(serverless, stackName, changeSetName, changes);
         } else {
           serverless.cli.log('[serverless-plugin-bootstrap]: No changes.');
 
@@ -103,6 +108,28 @@ module.exports = class BootstrapPlugin {
           })
         }
       });
+  }
+
+  updateStackPolicy() {
+    const { provider, serverless } = this;
+    const { service } = serverless;
+    const { custom = {} } = service;
+    const { bootstrap = {} } = custom;
+    const { stackPolicy = null } = bootstrap;
+    const stackName = this.getStackName();
+
+    if (!stackPolicy) {
+      throw new Error('Must add \'stackPolicy\' to the bootstrap configuration.');
+    }
+
+    const statement = [].concat(stackPolicy);
+
+    printStackPolicy(serverless, stackName, statement);
+
+    return provider.request('CloudFormation', 'setStackPolicy', {
+      StackName: stackName,
+      StackPolicyBody: JSON.stringify({ Statement: statement })
+    });
   }
 
   getChanges(stackName, detailed = false) {
