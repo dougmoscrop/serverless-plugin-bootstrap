@@ -84,4 +84,16 @@ Resources:
     Properties:
       TopicName:
         Fn::Sub: ${service}-${stage}-monitoring
+
+  NestedStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: templates/nested-stack.yml
+      Parameters:
+        stage:
+          Ref: stage
 ```
+
+As you can see, `NestedStack` is an `AWS::CloudFormation::Stack`, a nested stack that is defined by a local file (relative path to this template file - ./templates/nested-stack)
+
+This plugin will upload that template to S3 and replace the TemplateURL with the S3 URL -- similar to how the AWS CLI supports `aws cloudformation package`
