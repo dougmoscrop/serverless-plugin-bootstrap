@@ -42,6 +42,8 @@ The bootstrap config block supports the following additional keys as options:
 
 `stack`: this overrides the stack name, which defaults to `${service}-${fileBaseNameWithoutExtension}`
 
+> Note: By default the stack name is once-per-service (across stages - e.g. for API Gateway account level stuff).  This is likely going to change to per-stage in the next major version, but the stack name override will continue to allow per-service bootstraps.
+
 `capabilities`: this is an array of capabilities, such as `CAPABILITY_IAM` or `CAPABILITY_NAMED_IAM` which may be required depending on the resources in your bootstrap template.
 
 ## bootstrap.json
