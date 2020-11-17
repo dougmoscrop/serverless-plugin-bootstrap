@@ -149,7 +149,10 @@ module.exports = class BootstrapPlugin {
     const bucketName = bucket || `${stackName}-resources`;
     const basedir = path.dirname(file);
 
-    return pkg({ credentials, template, basedir, bucketName })
+    const { deploymentBucketObject = {} } = service.provider;
+    const { blockPublicAccess } = deploymentBucketObject;
+
+    return pkg({ credentials, template, basedir, bucketName, blockPublicAccess })
       .then(() => {
         const options = {
           credentials, prefix, description, capabilities, stackName, roleArn, template, parameters, detailed
