@@ -1,6 +1,6 @@
 {
   "name": "serverless-plugin-bootstrap",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Deploy bootstrap CloudFormation stacks prior to deploying your Serverless app",
   "main": "bootstrap.js",
   "scripts": {
