@@ -25,6 +25,7 @@ module.exports = class BootstrapPlugin {
               ['change-set']: {
                 usage: 'The name of the ChangeSet to execute',
                 required: true,
+                type: 'string',
               }
             },
             lifecycleEvents: ['execute']
@@ -39,6 +40,7 @@ module.exports = class BootstrapPlugin {
         options: {
           bootstrap: {
             usage: 'Whether or not to check the bootstrap stack for changes (default to true, use --no-bootstrap to disable)',
+            type: 'boolean'
           }
         }
       }
