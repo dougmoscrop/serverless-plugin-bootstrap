@@ -17,8 +17,24 @@ module.exports = class BootstrapPlugin {
     this.commands = {
       bootstrap: {
         usage: 'Manages a CloudFormation Stack that complements the main Serverless Stack',
+        options: {
+          execute: {
+            usage: 'Auto-execute changes and wait for them to complete',
+            type: 'boolean'
+          },
+        },
         lifecycleEvents: ['bootstrap'],
         commands: {
+          remove: {
+            usage: 'Remove the bootstrap stack',
+            options: {
+              wait: {
+                usage: 'Wait for the stack to remove',
+                type: 'boolean',
+              }
+            },
+            lifecycleEvents: ['remove']
+          },
           execute: {
             usage: 'Execute a ChangeSet',
             options: {
@@ -26,6 +42,10 @@ module.exports = class BootstrapPlugin {
                 usage: 'The name of the ChangeSet to execute',
                 required: true,
                 type: 'string',
+              },
+              wait: {
+                usage: 'Wait for the change set to execute',
+                type: 'boolean',
               }
             },
             lifecycleEvents: ['execute']
@@ -41,12 +61,17 @@ module.exports = class BootstrapPlugin {
           bootstrap: {
             usage: 'Whether or not to check the bootstrap stack for changes (default to true, use --no-bootstrap to disable)',
             type: 'boolean'
-          }
+          },
+          execute: {
+            usage: 'Auto-execute changes and wait for them to complete',
+            type: 'boolean'
+          },
         }
       }
     };
     this.hooks = {
       'bootstrap:bootstrap': () => this.bootstrap(),
+      'bootstrap:remove:remove': () => this.remove(),
       'bootstrap:execute:execute': () => this.execute(),
       'bootstrap:policy:policy': () => this.updateStackPolicy(),
       'before:deploy:deploy': () => this.check()
@@ -54,24 +79,43 @@ module.exports = class BootstrapPlugin {
   }
 
   execute() {
-    const { provider } = this;
     const changeSetName = this.options['change-set'];
-
-    const stackName = this.getStackName();
+    const { wait } = this.getConfig()
 
     if (typeof changeSetName === 'string') {
-      return provider.request('CloudFormation', 'executeChangeSet', {
-        StackName: stackName,
-        ChangeSetName: changeSetName
-      });
+      return this.executeChangeSet(changeSetName, wait)
     }
 
     throw new Error('Bootstrap: You must specify a ChangeSet name (serverless bootstrap execute --change-set {{changeSetName}})');
   }
 
+  async remove() {
+    const { provider, serverless } = this;
+    const stackName = this.getStackName();
+
+    await provider.request('CloudFormation', 'deleteStack', {
+      StackName: stackName,
+    })
+
+    const { wait = true } = this.getConfig()
+
+    if (wait) {
+      try {
+        serverless.cli.log('[serverless-plugin-bootstrap]: Waiting for stack to delete..');
+        await this.waitForStack()
+      } catch (err) {
+        if (err.message.indexOf('does not exist') === -1) {
+          throw err;
+        }
+      }
+      serverless.cli.log('[serverless-plugin-bootstrap]: Delete complete.');
+    }
+  }
+
   check() {
     const { provider, serverless } = this;
     const { bootstrap = true } = this.options;
+    const { execute } = this.getConfig()
 
     if (bootstrap === false) {
       serverless.cli.log('WARNING: Skipping bootstrap check - your infrastructure might not match your code!');
@@ -83,6 +127,10 @@ module.exports = class BootstrapPlugin {
     return this.getChanges(stackName)
       .then(({ changeSetName, changes }) => {
         if (changes.length > 0) {
+          if (execute) {
+            return this.executeChangeSet(changeSetName, true)
+          }
+
           throw new Error(`The ${stackName} stack does not match the local template. Use the 'serverless bootstrap' command to view the diff and either update your source code or apply the changes`);
         }
 
@@ -96,11 +144,16 @@ module.exports = class BootstrapPlugin {
   bootstrap() {
     const { provider, serverless } = this;
     const stackName = this.getStackName();
+    const { execute } = this.getConfig()
 
     return this.getChanges(stackName, true)
       .then(({ changeSetName, changes }) => {
         if (changes.length > 0) {
-          return printChanges(serverless, stackName, changeSetName, changes);
+          if (execute) {
+            return this.executeChangeSet(changeSetName, true)
+          } else {
+            return printChanges(serverless, stackName, changeSetName, changes);
+          }
         } else {
           serverless.cli.log('[serverless-plugin-bootstrap]: No changes.');
 
@@ -110,6 +163,48 @@ module.exports = class BootstrapPlugin {
           })
         }
       });
+  }
+
+  async executeChangeSet(changeSetName, waitForComplete = false) {
+    const { provider, serverless } = this;
+    const stackName = this.getStackName();
+
+    await provider.request('CloudFormation', 'executeChangeSet', {
+      StackName: stackName,
+      ChangeSetName: changeSetName
+    })
+
+    if (waitForComplete) {
+      serverless.cli.log('[serverless-plugin-bootstrap]: Waiting for change set to execute..');
+      await this.waitForStack();
+    }
+
+    serverless.cli.log('[serverless-plugin-bootstrap]: Execute complete.');
+  }
+
+  async waitForStack() {
+    const { provider } = this;
+    const stackName = this.getStackName();
+
+    let status = ''
+
+    while (status.indexOf('COMPLETE') === -1) {
+      await new Promise(resolve => {
+        setTimeout(resolve, 5000)
+      })
+
+      const { Stacks } = await provider.request('CloudFormation', 'describeStacks', {
+        StackName: stackName,
+      })
+
+      if (Stacks.length > 0) {
+        status = Stacks[0].StackStatus
+      }
+    }
+
+    if (status.indexOf('ROLLBACK') !== -1) {
+      throw new Error(`Stack ${stackName} status is in rollback: ${status}`)
+    }
   }
 
   updateStackPolicy() {
@@ -183,6 +278,15 @@ module.exports = class BootstrapPlugin {
     const serviceName = service.service;
 
     return stack || `${serviceName}-${fileName}`;
+  }
+
+  getConfig() {
+    const { serverless } = this;
+    const { service } = serverless;
+    const { custom = {} } = service;
+    const { bootstrap = {} } = custom;
+
+    return Object.assign(bootstrap, this.options)
   }
 
 };
