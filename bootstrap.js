@@ -202,7 +202,7 @@ module.exports = class BootstrapPlugin {
       }
     }
 
-    if (status.indexOf('ROLLBACK') !== -1) {
+    if (status.indexOf("ROLLBACK") !== -1 && !status.endsWith("COMPLETE")) {
       throw new Error(`Stack ${stackName} status is in rollback: ${status}`)
     }
   }
