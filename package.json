@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/dougmoscrop/serverless-plugin-bootstrap#readme",
   "devDependencies": {
-    "ava": "^3.13.0",
+    "ava": "^5.2.0",
     "eslint": "^8.6.0",
     "nyc": "^15.1.0",
     "proxyquire": "^2.1.3",
